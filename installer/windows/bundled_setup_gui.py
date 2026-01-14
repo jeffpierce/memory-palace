@@ -438,12 +438,11 @@ Click Next to check your system."""
                 nav_frame,
                 text="Next",
                 command=self.show_installation_options,
-                width=15,
-                state=tk.DISABLED
+                width=15
             )
             self.next_btn.pack(side=tk.RIGHT)
 
-            # Run checks in background
+            # Run checks in background (button always enabled, user can proceed whenever)
             threading.Thread(target=self.run_dependency_checks, daemon=True).start()
 
         def update_status(self, key: str, success: bool, detail: str):
@@ -550,14 +549,8 @@ Click Next to check your system."""
                     self.root.after(0, lambda: self.update_status("llm", False, "Need GPU info first"))
 
             except Exception as e:
-                # If anything fails, show error but still enable Next
-                self.root.after(0, lambda err=str(e): messagebox.showwarning(
-                    "Check Warning",
-                    f"Some checks failed: {err[:100]}\n\nYou can still proceed."
-                ))
-            finally:
-                # ALWAYS enable next button
-                self.root.after(0, lambda: self.next_btn.config(state=tk.NORMAL))
+                # If anything fails, just log it - button is always enabled
+                print(f"Dependency check error: {e}")
 
         def show_installation_options(self):
             """Screen 3: Installation options screen."""
