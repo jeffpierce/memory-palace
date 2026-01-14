@@ -54,14 +54,13 @@ def collect_package_files():
     project_root = get_project_root()
     data_files = []
 
-    # Directories to include
+    # Directories to include (NOT installer - that's us, and contains dist/build)
     include_dirs = [
         "memory_palace",
         "mcp_server",
         "setup",
         "tools",
         "docs",
-        "installer",  # Include installer dir for any assets
     ]
 
     # Single files to include
