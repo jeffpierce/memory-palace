@@ -732,21 +732,22 @@ Click Next to check your system."""
             # Spacer
             ttk.Frame(self.container).pack(fill=tk.BOTH, expand=True)
 
-            # Start installation
-            threading.Thread(target=self.run_installation, daemon=True).start()
+            # Run installation synchronously
+            self.root.update()
+            self.run_installation()
 
         def log_status(self, message: str):
             """Add a message to the status text."""
-            def update():
-                self.status_text.config(state=tk.NORMAL)
-                self.status_text.insert(tk.END, message + "\n")
-                self.status_text.see(tk.END)
-                self.status_text.config(state=tk.DISABLED)
-            self.root.after(0, update)
+            self.status_text.config(state=tk.NORMAL)
+            self.status_text.insert(tk.END, message + "\n")
+            self.status_text.see(tk.END)
+            self.status_text.config(state=tk.DISABLED)
+            self.root.update()
 
         def set_progress(self, value: int):
             """Set progress bar value (0-100)."""
-            self.root.after(0, lambda: self.progress.configure(value=value))
+            self.progress.configure(value=value)
+            self.root.update()
 
         def run_installation(self):
             """Run the installation process."""
