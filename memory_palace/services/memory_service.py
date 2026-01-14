@@ -98,6 +98,74 @@ def remember(
         db.close()
 
 
+def _synthesize_memories_with_llm(memories: List[Any], query: str) -> Optional[str]:
+    """
+    Use LLM to synthesize memories into a natural language summary.
+
+    Args:
+        memories: List of Memory objects to synthesize
+        query: The original search query for context
+
+    Returns:
+        Natural language synthesis, or None if LLM unavailable
+    """
+    from memory_palace.llm import generate_with_llm, is_llm_available
+
+    if not is_llm_available():
+        return None
+
+    if not memories:
+        return "No memories found matching your query."
+
+    # Build a compact representation for the LLM
+    memory_texts = []
+    for m in memories:
+        parts = [f"[{m.memory_type}]"]
+        if m.subject:
+            parts.append(f"({m.subject})")
+        parts.append(m.content[:500])  # Truncate long content
+        memory_texts.append(" ".join(parts))
+
+    memories_block = "\n---\n".join(memory_texts)
+
+    system = """You synthesize memories into concise, natural language summaries.
+Be brief but complete. Focus on key facts, decisions, and context.
+Do NOT use bullet points or lists. Write flowing prose.
+If memories contradict each other, note the discrepancy."""
+
+    prompt = f"""Query: {query}
+
+Found {len(memories)} relevant memories:
+
+{memories_block}
+
+Synthesize these into a brief, natural response (2-4 sentences max):"""
+
+    return generate_with_llm(prompt, system=system)
+
+
+def _format_memories_as_text(memories: List[Any]) -> str:
+    """
+    Format memories as simple text list (fallback when LLM unavailable).
+
+    Args:
+        memories: List of Memory objects
+
+    Returns:
+        Simple text list of memories
+    """
+    if not memories:
+        return "No memories found."
+
+    lines = []
+    for m in memories:
+        subject_part = f" ({m.subject})" if m.subject else ""
+        preview = m.content[:100] + "..." if len(m.content) > 100 else m.content
+        lines.append(f"- [{m.memory_type}]{subject_part}: {preview}")
+
+    return "\n".join(lines)
+
+
 def recall(
     query: str,
     instance_id: Optional[str] = None,
@@ -122,7 +190,7 @@ def recall(
         detail_level: "summary" for condensed, "verbose" for full content
 
     Returns:
-        Dictionary with matching memories
+        Dictionary with synthesized summary (LLM) or text list (fallback)
     """
     db = get_session()
     try:
@@ -206,20 +274,26 @@ def recall(
             memory.access_count += 1
         db.commit()
 
-        # Build result with optional similarity scores
-        result_memories = []
-        for m in memories:
-            mem_dict = m.to_dict(detail_level=detail_level)
-            if m.id in similarity_scores:
-                mem_dict["similarity_score"] = round(similarity_scores[m.id], 4)
-            result_memories.append(mem_dict)
+        # Try LLM synthesis first, fall back to text list
+        synthesis = _synthesize_memories_with_llm(memories, query)
 
-        # Trimmed response: just results and search method, no echoed params
-        return {
-            "search_method": search_method,
-            "count": len(memories),
-            "memories": result_memories
-        }
+        if synthesis:
+            # LLM synthesis available - return natural language response
+            return {
+                "summary": synthesis,
+                "count": len(memories),
+                "search_method": search_method,
+                "memory_ids": [m.id for m in memories]
+            }
+        else:
+            # Fallback to simple text list
+            text_list = _format_memories_as_text(memories)
+            return {
+                "summary": text_list,
+                "count": len(memories),
+                "search_method": search_method + " (no LLM)",
+                "memory_ids": [m.id for m in memories]
+            }
     finally:
         db.close()
 
@@ -236,7 +310,7 @@ def forget(
         reason: Optional reason for archiving
 
     Returns:
-        Dict with success status and archived memory
+        Compact confirmation string
     """
     db = get_session()
     try:
@@ -244,6 +318,7 @@ def forget(
         if not memory:
             return {"error": f"Memory {memory_id} not found"}
 
+        subject_info = f" ({memory.subject})" if memory.subject else ""
         memory.is_archived = 1
         if reason and memory.source_context:
             memory.source_context = f"{memory.source_context}\n[ARCHIVED: {reason}]"
@@ -251,14 +326,9 @@ def forget(
             memory.source_context = f"[ARCHIVED: {reason}]"
 
         db.commit()
-        db.refresh(memory)
 
-        return {
-            "success": True,
-            "message": f"Memory {memory_id} archived",
-            "reason": reason,
-            "memory": memory.to_dict()
-        }
+        # Compact response
+        return {"message": f"Archived memory {memory_id}{subject_info}"}
     finally:
         db.close()
 

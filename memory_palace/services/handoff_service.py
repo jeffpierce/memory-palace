@@ -155,8 +155,7 @@ def mark_handoff_read(
         read_by: Which instance read it (must be in configured instances)
 
     Returns:
-        {"success": True} on success
-        {"error": "..."} on failure
+        Compact confirmation string
     """
     session = get_session()
     try:
@@ -176,6 +175,7 @@ def mark_handoff_read(
         message.read_by = read_by
         session.commit()
 
-        return {"success": True}
+        # Compact response
+        return {"message": "Marked read"}
     finally:
         session.close()

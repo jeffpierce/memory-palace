@@ -22,7 +22,7 @@ def register_mark_handoff_read(mcp):
             read_by: Which instance read it (e.g., "desktop", "code", "web")
 
         Returns:
-            Dict with success status
+            Compact confirmation: "Marked read"
         """
         return mark_handoff_read(
             message_id=message_id,

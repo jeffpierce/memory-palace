@@ -25,7 +25,7 @@ def register_forget(mcp):
             reason: Optional reason for archiving
 
         Returns:
-            Dict with success status and message
+            Compact confirmation: "Archived memory X (subject)"
         """
         return forget(
             memory_id=memory_id,

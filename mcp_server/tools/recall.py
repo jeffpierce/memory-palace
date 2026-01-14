@@ -24,6 +24,7 @@ def register_recall(mcp):
         Search memories using semantic search (with keyword fallback).
 
         Uses embedding similarity when Ollama is available, falls back to keyword matching otherwise.
+        Returns a natural language synthesis of matching memories (via LLM) or a text list (fallback).
 
         Args:
             query: Search query - uses semantic similarity when Ollama is available, falls back to keyword matching
@@ -36,7 +37,7 @@ def register_recall(mcp):
             detail_level: "summary" for condensed, "verbose" for full content
 
         Returns:
-            Dictionary with search_method, count, and memories list
+            Dictionary with summary (natural language synthesis), count, search_method, and memory_ids
         """
         return recall(
             query=query,
