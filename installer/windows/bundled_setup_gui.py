@@ -506,48 +506,58 @@ Click Next to check your system."""
 
         def run_dependency_checks(self):
             """Run all dependency checks."""
-            # Python
-            success, detail = self.checker.check_python()
-            self.dependency_results["python"] = (success, detail)
-            self.root.after(0, lambda: self.update_status("python", success, detail))
+            try:
+                # Python
+                success, detail = self.checker.check_python()
+                self.dependency_results["python"] = (success, detail)
+                self.root.after(0, lambda s=success, d=detail: self.update_status("python", s, d))
 
-            if not success:
-                version = sys.version_info
-                current = f"{version.major}.{version.minor}"
-                self.root.after(100, lambda: self.show_python_upgrade_dialog(current))
+                if not success:
+                    version = sys.version_info
+                    current = f"{version.major}.{version.minor}"
+                    self.root.after(100, lambda: self.show_python_upgrade_dialog(current))
 
-            # Ollama
-            success, detail = self.checker.check_ollama()
-            self.dependency_results["ollama"] = (success, detail)
-            self.root.after(0, lambda: self.update_status("ollama", success, detail))
+                # Ollama
+                success, detail = self.checker.check_ollama()
+                self.dependency_results["ollama"] = (success, detail)
+                self.root.after(0, lambda s=success, d=detail: self.update_status("ollama", s, d))
 
-            # GPU
-            success, detail, vram = self.checker.check_nvidia_gpu()
-            self.dependency_results["gpu"] = (success, detail)
-            self.vram_gb = vram
-            self.model_recommendations = self.checker.get_model_recommendations(vram)
-            self.root.after(0, lambda: self.update_status("gpu", success, detail))
+                # GPU
+                success, detail, vram = self.checker.check_nvidia_gpu()
+                self.dependency_results["gpu"] = (success, detail)
+                self.vram_gb = vram
+                self.model_recommendations = self.checker.get_model_recommendations(vram)
+                self.root.after(0, lambda s=success, d=detail: self.update_status("gpu", s, d))
 
-            # Embedding model
-            if self.model_recommendations:
-                embedding_model = self.model_recommendations.get("embedding", "snowflake-arctic-embed:l")
-                success, detail = self.checker.check_ollama_model(embedding_model)
-                self.dependency_results["embedding"] = (success, detail)
-                self.root.after(0, lambda: self.update_status("embedding", success, detail))
-            else:
-                self.root.after(0, lambda: self.update_status("embedding", False, "Need GPU info first"))
+                # Embedding model
+                if self.model_recommendations:
+                    embedding_model = self.model_recommendations.get("embedding", "snowflake-arctic-embed:l")
+                    success, detail = self.checker.check_ollama_model(embedding_model)
+                    self.dependency_results["embedding"] = (success, detail)
+                    self.root.after(0, lambda s=success, d=detail: self.update_status("embedding", s, d))
+                else:
+                    self.dependency_results["embedding"] = (False, "Need GPU info first")
+                    self.root.after(0, lambda: self.update_status("embedding", False, "Need GPU info first"))
 
-            # LLM model (optional)
-            if self.model_recommendations:
-                llm_model = self.model_recommendations.get("llm", "qwen2.5:7b")
-                success, detail = self.checker.check_ollama_model(llm_model)
-                self.dependency_results["llm"] = (success, detail)
-                self.root.after(0, lambda: self.update_status("llm", success, detail))
-            else:
-                self.root.after(0, lambda: self.update_status("llm", False, "Need GPU info first"))
+                # LLM model (optional)
+                if self.model_recommendations:
+                    llm_model = self.model_recommendations.get("llm", "qwen2.5:7b")
+                    success, detail = self.checker.check_ollama_model(llm_model)
+                    self.dependency_results["llm"] = (success, detail)
+                    self.root.after(0, lambda s=success, d=detail: self.update_status("llm", s, d))
+                else:
+                    self.dependency_results["llm"] = (False, "Need GPU info first")
+                    self.root.after(0, lambda: self.update_status("llm", False, "Need GPU info first"))
 
-            # Enable next button
-            self.root.after(0, lambda: self.next_btn.config(state=tk.NORMAL))
+            except Exception as e:
+                # If anything fails, show error but still enable Next
+                self.root.after(0, lambda err=str(e): messagebox.showwarning(
+                    "Check Warning",
+                    f"Some checks failed: {err[:100]}\n\nYou can still proceed."
+                ))
+            finally:
+                # ALWAYS enable next button
+                self.root.after(0, lambda: self.next_btn.config(state=tk.NORMAL))
 
         def show_installation_options(self):
             """Screen 3: Installation options screen."""
@@ -574,7 +584,7 @@ Click Next to check your system."""
                 row.pack(fill=tk.X, pady=5)
                 ttk.Checkbutton(
                     row,
-                    text="Open Ollama download page",
+                    text="Install Ollama (via winget)",
                     variable=self.install_ollama
                 ).pack(anchor=tk.W)
                 ttk.Label(
@@ -762,19 +772,34 @@ Click Next to check your system."""
             try:
                 # Step 1: Ollama
                 if self.install_ollama.get():
-                    self.log_status("Opening Ollama download page...")
-                    webbrowser.open("https://ollama.com/download")
-                    self.log_status("Please install Ollama, then restart this installer.")
+                    self.log_status("Installing Ollama via winget...")
+
+                    result = subprocess.run(
+                        ["winget", "install", "Ollama.Ollama", "--accept-package-agreements", "--accept-source-agreements"],
+                        capture_output=True,
+                        text=True,
+                        timeout=600,  # 10 minute timeout for download
+                        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                    )
+
+                    if result.returncode == 0:
+                        self.log_status("Ollama installed successfully!")
+                        # Update dependency result
+                        self.dependency_results["ollama"] = (True, "Installed via winget")
+                    else:
+                        # Fallback to browser if winget fails
+                        self.log_status("winget install failed, opening download page...")
+                        webbrowser.open("https://ollama.com/download")
+                        self.root.after(0, lambda: messagebox.showinfo(
+                            "Install Ollama",
+                            "Automatic install failed. The download page has been opened.\n\n"
+                            "Please install Ollama manually, then restart this installer."
+                        ))
+                        self.root.after(0, self.root.destroy)
+                        return
+
                     current_progress += step_size
                     self.set_progress(current_progress)
-
-                    self.root.after(0, lambda: messagebox.showinfo(
-                        "Install Ollama",
-                        "The Ollama download page has been opened.\n\n"
-                        "Please download and install Ollama, then restart this installer."
-                    ))
-                    self.root.after(0, self.root.destroy)
-                    return
 
                 # Step 2: Create venv and install package
                 if self.install_package.get():
