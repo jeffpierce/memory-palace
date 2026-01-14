@@ -48,7 +48,7 @@ memory-palace-mcp = "memory_palace.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["memory_palace*"]
+include = ["memory_palace*", "mcp_server*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
