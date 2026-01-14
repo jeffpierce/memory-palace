@@ -796,12 +796,14 @@ Click Next to check your system."""
 
                 # Step 2: Create venv and install package
                 if self.install_package.get():
-                    # Create venv
+                    # Create venv - need to find actual Python, not sys.executable (which is the exe in PyInstaller)
                     venv_dir = Path(self.package_dir) / "venv"
                     self.log_status(f"Creating virtual environment at {venv_dir}...")
 
+                    # Find Python interpreter (sys.executable is the bundled exe, not Python)
+                    python_cmd = "python"
                     result = subprocess.run(
-                        [sys.executable, "-m", "venv", str(venv_dir)],
+                        [python_cmd, "-m", "venv", str(venv_dir)],
                         capture_output=True,
                         text=True,
                         creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
