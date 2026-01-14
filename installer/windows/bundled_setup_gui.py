@@ -59,6 +59,7 @@ def is_already_extracted() -> bool:
 def extract_package() -> Path:
     """
     Extract the bundled package to permanent install location.
+    Always overwrites existing files to ensure updates are applied.
 
     Returns the path to the extracted package.
     """
@@ -66,25 +67,15 @@ def extract_package() -> Path:
     install_path = get_install_location()
 
     print(f"Extracting package to: {install_path}")
+    print(f"Copying from: {bundled_path}")
 
-    # If install location exists but is incomplete, remove it
-    if install_path.exists() and not is_already_extracted():
-        print("Removing incomplete previous installation...")
-        shutil.rmtree(install_path)
+    # Ensure parent exists
+    install_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Extract if needed
-    if not is_already_extracted():
-        print(f"Copying from: {bundled_path}")
+    # Always copy/overwrite package files
+    shutil.copytree(bundled_path, install_path, dirs_exist_ok=True)
 
-        # Ensure parent exists
-        install_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Copy entire package
-        shutil.copytree(bundled_path, install_path, dirs_exist_ok=True)
-
-        print("Package extracted successfully!")
-    else:
-        print("Package already extracted, skipping.")
+    print("Package extracted successfully!")
 
     return install_path
 
@@ -799,6 +790,12 @@ Click Next to check your system."""
                 if self.install_package.get():
                     # Create venv - need to find actual Python, not sys.executable (which is the exe in PyInstaller)
                     venv_dir = Path(self.package_dir) / "venv"
+
+                    # Remove existing venv for clean reinstall
+                    if venv_dir.exists():
+                        self.log_status("Removing existing virtual environment...")
+                        shutil.rmtree(venv_dir)
+
                     self.log_status(f"Creating virtual environment at {venv_dir}...")
 
                     # Find Python interpreter (sys.executable is the bundled exe, not Python)
