@@ -224,6 +224,7 @@ def _format_memories_as_text(memories: List[Any]) -> str:
 def recall(
     query: str,
     instance_id: Optional[str] = None,
+    project: Optional[str] = None,
     memory_type: Optional[str] = None,
     subject: Optional[str] = None,
     min_importance: Optional[int] = None,
@@ -238,6 +239,7 @@ def recall(
     Args:
         query: Search query (used for semantic similarity or keyword matching)
         instance_id: Filter by instance (optional)
+        project: Filter by project (optional, e.g., "memory-palace", "wordleap", "life")
         memory_type: Filter by type (optional)
         subject: Filter by subject (optional)
         min_importance: Only return memories with importance >= this
@@ -265,6 +267,10 @@ def recall(
         # Filter by instance if specified
         if instance_id:
             base_query = base_query.filter(Memory.instance_id == instance_id)
+
+        # Filter by project if specified
+        if project:
+            base_query = base_query.filter(Memory.project == project)
 
         if memory_type:
             base_query = base_query.filter(Memory.memory_type == memory_type)

@@ -13,6 +13,7 @@ def register_recall(mcp):
     async def memory_recall(
         query: str,
         instance_id: Optional[str] = None,
+        project: Optional[str] = None,
         memory_type: Optional[str] = None,
         subject: Optional[str] = None,
         min_importance: Optional[int] = None,
@@ -38,6 +39,7 @@ def register_recall(mcp):
         Args:
             query: Search query - uses semantic similarity when Ollama is available, falls back to keyword matching
             instance_id: Filter by instance (optional)
+            project: Filter by project (optional, e.g., "memory-palace", "wordleap", "life")
             memory_type: Filter by type (e.g., fact, preference, event, context, insight, relationship, architecture, gotcha, blocker, solution, workaround, design_decision, or any custom type)
             subject: Filter by subject
             min_importance: Only return memories with importance >= this (1-10)
@@ -55,6 +57,7 @@ def register_recall(mcp):
         return recall(
             query=query,
             instance_id=instance_id,
+            project=project,
             memory_type=memory_type,
             subject=subject,
             min_importance=min_importance,

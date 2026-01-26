@@ -16,7 +16,9 @@ def register_remember(mcp):
         content: str,
         subject: Optional[str] = None,
         keywords: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
         importance: int = 5,
+        project: str = "life",
         source_type: str = "explicit",
         source_context: Optional[str] = None,
         source_session_id: Optional[str] = None
@@ -40,7 +42,9 @@ def register_remember(mcp):
             content: The actual memory content
             subject: What/who this memory is about (optional but recommended)
             keywords: List of keywords for searchability
+            tags: Freeform organizational tags (separate from keywords)
             importance: 1-10, higher = more important (default 5)
+            project: Project this memory belongs to (default "life" for non-project memories)
             source_type: How this memory was created (conversation, explicit, inferred, observation)
             source_context: Snippet of original context
             source_session_id: Link back to conversation session
@@ -54,7 +58,9 @@ def register_remember(mcp):
             content=content,
             subject=subject,
             keywords=keywords,
+            tags=tags,
             importance=importance,
+            project=project,
             source_type=source_type,
             source_context=source_context,
             source_session_id=source_session_id
