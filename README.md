@@ -65,15 +65,17 @@ Once configured with Claude Desktop, use natural language:
 | Tool | Description |
 |------|-------------|
 | `memory_remember` | Store a new memory |
-| `memory_recall` | Semantic search across memories |
+| `memory_recall` | Semantic search across memories (supports `synthesize` param) |
 | `memory_forget` | Archive a memory |
 | `memory_reflect` | Extract memories from transcripts |
 | `memory_stats` | Memory system overview |
-| `memory_get` | Retrieve memories by ID |
+| `memory_get` | Retrieve memories by ID (supports `synthesize` param) |
 | `memory_backfill_embeddings` | Generate embeddings for memories without them |
 | `handoff_send` | Send message to another Claude instance |
 | `handoff_get` | Check for messages from other instances |
 | `handoff_mark_read` | Mark a handoff message as read |
+
+Both `memory_recall` and `memory_get` support `synthesize=true/false` to control whether results are returned as raw objects or processed through the local LLM for natural language summaries.
 
 ## Architecture
 
