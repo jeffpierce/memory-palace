@@ -82,10 +82,20 @@ Once configured, Claude will have access to the following memory tools:
 | Tool | Description |
 |------|-------------|
 | `memory_remember` | Store a new memory |
-| `memory_recall` | Search memories using semantic search |
+| `memory_recall` | Search memories using semantic search (supports `synthesize` param) |
 | `memory_forget` | Archive a memory (soft delete) |
-| `memory_get` | Retrieve memories by ID |
+| `memory_get` | Retrieve memories by ID (supports `synthesize` param) |
 | `memory_stats` | Get overview of memory system |
+
+#### Synthesis Parameter
+
+Both `memory_recall` and `memory_get` support a `synthesize` parameter:
+
+- **`synthesize=false`** (default for `memory_get`): Returns raw memory objects with full content. Best when you need exact wording or are processing with a cloud AI that can handle the full context.
+
+- **`synthesize=true`** (default for `memory_recall`): Runs memories through the local LLM (Qwen) to produce a natural language summary. Reduces token usage but takes longer (~1-2 min for large memories).
+
+For `memory_get`, synthesis is skipped for single memories (pointless to summarize one thing).
 
 ### Reflection Tools
 
@@ -113,6 +123,15 @@ Once configured, Claude will have access to the following memory tools:
 **Recalling memories:**
 ```
 "What do you remember about API changes?"
+```
+
+**Retrieving specific memories by ID:**
+```
+# Raw (full content, fast)
+memory_get(memory_ids=[167, 168, 169], synthesize=False)
+
+# Synthesized (natural language summary, slower)
+memory_get(memory_ids=[167, 168, 169], synthesize=True)
 ```
 
 **Reflecting on transcripts:**
