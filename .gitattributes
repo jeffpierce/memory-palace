@@ -1,0 +1,18 @@
+# Enforce LF line endings for all text files
+* text=auto eol=lf
+
+# Explicitly mark certain extensions as text
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.ico binary
