@@ -12,17 +12,64 @@ Key transformations from EFaaS:
 """
 
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 from sqlalchemy import func, or_, String
 
-from memory_palace.models import Memory
+from memory_palace.models import Memory, MemoryEdge
 from memory_palace.database import get_session
 from memory_palace.embeddings import get_embedding, cosine_similarity
+from memory_palace.config_v2 import get_auto_link_config
 
 
 # Valid source types for memories
 VALID_SOURCE_TYPES = ["conversation", "explicit", "inferred", "observation"]
+
+
+def _find_similar_memories(
+    db,
+    embedding: List[float],
+    exclude_id: int,
+    project: Optional[str] = None,
+    threshold: float = 0.75,
+    limit: int = 5
+) -> List[Tuple[int, float]]:
+    """
+    Find memories similar to the given embedding.
+    
+    Args:
+        db: Database session
+        embedding: The embedding vector to compare against
+        exclude_id: Memory ID to exclude (the new memory itself)
+        project: If set, only match memories in this project
+        threshold: Minimum cosine similarity to include (default 0.75)
+        limit: Maximum results to return (default 5)
+    
+    Returns:
+        List of (memory_id, similarity_score) tuples, sorted by similarity descending
+    """
+    # Build query for candidate memories
+    query = db.query(Memory).filter(
+        Memory.id != exclude_id,
+        Memory.is_archived == False,
+        Memory.embedding.isnot(None)
+    )
+    
+    if project:
+        query = query.filter(Memory.project == project)
+    
+    # Fetch candidates and score them
+    candidates = query.all()
+    scored = []
+    
+    for memory in candidates:
+        similarity = cosine_similarity(embedding, memory.embedding)
+        if similarity >= threshold:
+            scored.append((memory.id, similarity))
+    
+    # Sort by similarity (highest first) and limit
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:limit]
 
 
 def remember(
@@ -36,7 +83,9 @@ def remember(
     project: str = "life",
     source_type: str = "explicit",
     source_context: Optional[str] = None,
-    source_session_id: Optional[str] = None
+    source_session_id: Optional[str] = None,
+    supersedes_id: Optional[int] = None,
+    auto_link: Optional[bool] = None
 ) -> Dict[str, Any]:
     """
     Store a new memory in the memory palace.
@@ -53,9 +102,11 @@ def remember(
         source_type: How this memory was created (conversation, explicit, inferred, observation)
         source_context: Snippet of original context
         source_session_id: Link back to conversation session
+        supersedes_id: If set, create a 'supersedes' edge to this memory ID and archive it
+        auto_link: Override config to enable/disable auto-linking (None = use config)
 
     Returns:
-        Dict with id, subject, and embedded status
+        Dict with id, subject, embedded status, and links_created (if any)
     """
     db = get_session()
     try:
@@ -94,12 +145,91 @@ def remember(
         else:
             embedding_status = "failed (Ollama unavailable or error)"
 
-        # Trimmed response: just ID, subject, and embedding status (no full memory echo)
-        return {
+        # Track created links
+        links_created = []
+        
+        # Handle explicit supersession
+        if supersedes_id is not None:
+            old_memory = db.query(Memory).filter(Memory.id == supersedes_id).first()
+            if old_memory:
+                # Create supersedes edge
+                edge = MemoryEdge(
+                    source_id=memory.id,
+                    target_id=supersedes_id,
+                    relation_type="supersedes",
+                    strength=1.0,
+                    bidirectional=False,
+                    edge_metadata={"superseded_at": datetime.utcnow().isoformat()},
+                    created_by=instance_id
+                )
+                db.add(edge)
+                
+                # Archive the old memory
+                if not old_memory.is_archived:
+                    old_memory.is_archived = True
+                    if old_memory.source_context:
+                        old_memory.source_context += f"\n[SUPERSEDED by #{memory.id}]"
+                    else:
+                        old_memory.source_context = f"[SUPERSEDED by #{memory.id}]"
+                
+                db.commit()
+                links_created.append({
+                    "target": supersedes_id,
+                    "type": "supersedes",
+                    "archived_old": True
+                })
+        
+        # Auto-link by similarity if enabled and we have an embedding
+        auto_link_config = get_auto_link_config()
+        should_auto_link = auto_link if auto_link is not None else auto_link_config["enabled"]
+        
+        if should_auto_link and embedding:
+            # Find similar memories
+            similar_project = project if auto_link_config["same_project_only"] else None
+            similar = _find_similar_memories(
+                db,
+                embedding,
+                memory.id,
+                project=similar_project,
+                threshold=auto_link_config["similarity_threshold"],
+                limit=auto_link_config["max_links"]
+            )
+            
+            for target_id, score in similar:
+                # Don't duplicate the supersedes link
+                if target_id == supersedes_id:
+                    continue
+                    
+                edge = MemoryEdge(
+                    source_id=memory.id,
+                    target_id=target_id,
+                    relation_type="relates_to",
+                    strength=score,
+                    bidirectional=True,  # Similarity is symmetric
+                    edge_metadata={"auto_linked": True, "method": "embedding_similarity"},
+                    created_by=instance_id
+                )
+                db.add(edge)
+                links_created.append({
+                    "target": target_id,
+                    "type": "relates_to",
+                    "score": round(score, 4)
+                })
+            
+            if similar:
+                db.commit()
+
+        # Build response
+        result = {
             "id": memory.id,
             "subject": subject,
             "embedded": embedding_status == "generated"
         }
+        
+        if links_created:
+            result["links_created"] = links_created
+        
+        return result
     finally:
         db.close()
 

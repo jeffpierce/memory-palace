@@ -21,7 +21,9 @@ def register_remember(mcp):
         project: str = "life",
         source_type: str = "explicit",
         source_context: Optional[str] = None,
-        source_session_id: Optional[str] = None
+        source_session_id: Optional[str] = None,
+        supersedes_id: Optional[int] = None,
+        auto_link: Optional[bool] = None
     ) -> dict[str, Any]:
         """
         Store a new memory in the memory palace.
@@ -36,6 +38,10 @@ def register_remember(mcp):
         - The user shouldn't have to tell you to remember - that's why this system exists
         - If it would be useful in a future session, STORE IT NOW
 
+        AUTO-LINKING: New memories are automatically linked to similar existing memories
+        via "relates_to" edges (configurable via auto_link config). For explicit supersession
+        or other typed relationships, use supersedes_id or call memory_link separately.
+
         Args:
             instance_id: Which Claude instance is storing this (e.g., "desktop", "code", "web")
             memory_type: Type of memory (open-ended - use existing types or create new ones like: fact, preference, event, context, insight, relationship, architecture, gotcha, blocker, solution, workaround, design_decision)
@@ -48,9 +54,11 @@ def register_remember(mcp):
             source_type: How this memory was created (conversation, explicit, inferred, observation)
             source_context: Snippet of original context
             source_session_id: Link back to conversation session
+            supersedes_id: If set, create a 'supersedes' edge to this memory and archive it
+            auto_link: Override config to enable/disable similarity-based auto-linking (None = use config)
 
         Returns:
-            Dict with id, subject, and embedded status
+            Dict with id, subject, embedded status, and links_created (if any edges were auto-created)
         """
         return remember(
             instance_id=instance_id,
@@ -63,5 +71,7 @@ def register_remember(mcp):
             project=project,
             source_type=source_type,
             source_context=source_context,
-            source_session_id=source_session_id
+            source_session_id=source_session_id,
+            supersedes_id=supersedes_id,
+            auto_link=auto_link
         )

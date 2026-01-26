@@ -40,6 +40,16 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         # - GPU is busy (gaming, ComfyUI, etc.)
         # - You want Claude to do the reasoning instead of local Qwen
     },
+    # Auto-linking configuration (creates edges at remember() time)
+    "auto_link": {
+        "enabled": True,  # Set False to disable automatic edge creation
+        "similarity_threshold": 0.75,  # Only link if cosine similarity >= this
+        "max_links": 5,  # Maximum auto-created edges per new memory
+        "same_project_only": True,  # Only link to memories in the same project
+        # Note: Auto-linking only creates "relates_to" edges based on embedding
+        # similarity. Rich typed relationships (supersedes, contradicts, etc.)
+        # should be created via explicit memory_link calls or batch processing.
+    },
     # Instance configuration
     "instances": ["default"],
 }
@@ -309,6 +319,27 @@ def is_synthesis_enabled() -> bool:
     config = load_config()
     synthesis_config = config.get("synthesis", {})
     return synthesis_config.get("enabled", True)
+
+
+def get_auto_link_config() -> Dict[str, Any]:
+    """
+    Get auto-linking configuration.
+    
+    Returns:
+        Dict with auto_link settings:
+        - enabled: bool (default True)
+        - similarity_threshold: float (default 0.75)
+        - max_links: int (default 5)
+        - same_project_only: bool (default True)
+    """
+    config = load_config()
+    auto_link = config.get("auto_link", {})
+    return {
+        "enabled": auto_link.get("enabled", True),
+        "similarity_threshold": auto_link.get("similarity_threshold", 0.75),
+        "max_links": auto_link.get("max_links", 5),
+        "same_project_only": auto_link.get("same_project_only", True),
+    }
 
 
 def ensure_data_dir() -> Path:
