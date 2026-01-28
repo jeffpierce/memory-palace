@@ -22,6 +22,7 @@ wheels/
 
 # Virtual environments
 venv/
+venv-linux/
 ENV/
 env/
 .venv/
@@ -52,11 +53,10 @@ installer/windows/build/
 # Claude Code temp files
 tmpclaude-*
 
-# Junk files
+# Misc artifacts
 nul
-C:*
 comfyui_nodes.json
+C:*
 BEFORE_AFTER_EXAMPLES.md
 IMPLEMENTATION_SUMMARY.md
-venv-linux/
 .claude/

@@ -1,6 +1,6 @@
-# Memory Palace - Documentation
+# Claude Memory Palace - Documentation
 
-A persistent memory system for any MCP-compatible AI, enabling semantic search and knowledge graph traversal across conversations, facts, and insights.
+A persistent memory system for Claude instances, enabling semantic search across conversations, facts, and insights.
 
 ## Quick Start
 
@@ -9,7 +9,7 @@ A persistent memory system for any MCP-compatible AI, enabling semantic search a
 1. **Python 3.10+** - Required for the MCP server
 2. **Ollama** - For local embedding and LLM models
    - Download from: https://ollama.ai/download
-3. **~1.3GB disk space** for default models (GPU optional — CPU works, just slower)
+3. **NVIDIA GPU** - Recommended for acceptable performance (4GB+ VRAM)
 
 ### Installation
 
@@ -45,13 +45,16 @@ A persistent memory system for any MCP-compatible AI, enabling semantic search a
    ```
 
    This will:
-   - Detect your hardware
-   - Download default models (~1.3GB total)
-   - Optionally recommend upgraded models if a GPU is detected
+   - Detect your GPU and VRAM
+   - Recommend appropriate models
+   - Download required Ollama models
 
-### Configure Your MCP Client
+### Configure Claude Desktop
 
-Add the following to your MCP client's configuration file:
+Add the following to your Claude Desktop MCP configuration:
+
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 ```json
 {
@@ -59,7 +62,7 @@ Add the following to your MCP client's configuration file:
     "memory-palace": {
       "command": "python",
       "args": ["-m", "mcp_server.server"],
-      "cwd": "/path/to/memory-palace",
+      "cwd": "C:\\path\\to\\memory-palace",
       "env": {
         "OLLAMA_HOST": "http://localhost:11434"
       }
@@ -68,19 +71,11 @@ Add the following to your MCP client's configuration file:
 }
 ```
 
-**Config file locations by client:**
-
-| Client | Windows | macOS / Linux |
-|--------|---------|---------------|
-| Claude Desktop | `%APPDATA%\Claude\claude_desktop_config.json` | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Cursor | Settings → MCP Servers | Settings → MCP Servers |
-| Claude Code | `~/.claude/claude_desktop_config.json` | `~/.claude/claude_desktop_config.json` |
-
-The installer scripts auto-detect installed clients and configure them automatically.
+Adjust paths for your system.
 
 ## Usage
 
-Once configured, your AI will have access to the following memory tools:
+Once configured, Claude will have access to the following memory tools:
 
 ### Core Tools
 
@@ -174,7 +169,7 @@ Environment variables override config file values.
 
 ### Model Configuration
 
-The defaults (nomic-embed-text + qwen3:1.7b) work everywhere, including CPU-only machines. If you have a dedicated GPU and want better quality, see [models.md](models.md) for optional upgrades.
+See [models.md](models.md) for detailed model selection guide.
 
 ## Troubleshooting
 
@@ -187,26 +182,25 @@ ollama --version
 
 ### "Model not found"
 
-Download the default models manually:
+Download the required model:
 ```bash
 ollama pull nomic-embed-text
-ollama pull qwen3:1.7b
+ollama pull qwen2.5:7b
 ```
 
 ### "CUDA out of memory"
 
-If you upgraded to larger models and hit VRAM limits:
-1. Switch back to defaults (nomic-embed-text + qwen3:1.7b) — they always work
-2. Ensure only one model runs at a time (Ollama swaps automatically)
+Your VRAM is insufficient for the configured models. Options:
+1. Use smaller models (see [models.md](models.md))
+2. Ensure only one model runs at a time
 3. Close other GPU-intensive applications
-4. See [models.md](models.md) for VRAM requirements per model
 
-### Slow performance on CPU
+### Slow embedding/generation
 
-The default models are chosen to be usable on CPU. If you're experiencing slow performance:
-1. Stick with the defaults — qwen3:1.7b is responsive even on CPU
-2. Larger models (8B+) are significantly slower without a GPU
-3. Embedding is faster than LLM inference; recall should still feel snappy
+If using CPU inference, performance will be significantly slower. Consider:
+1. Using an NVIDIA GPU
+2. Using smaller models
+3. Batching operations during off-hours
 
 ## Architecture
 
@@ -235,12 +229,6 @@ memory-palace/
     ├── README.md          # This file
     └── models.md          # Model guide
 ```
-
-## Further Reading
-
-- [Architecture & Vision](architecture.md) — Why Memory Palace exists, what problems it solves, and the scaling path from personal SQLite to enterprise PostgreSQL clusters
-- [Use Cases](use-cases.md) — Real-world examples: personal memory, team knowledge sharing, agent swarm coordination, sovereign enterprise deployment
-- [Model Guide](models.md) — Default models and optional GPU upgrades
 
 ## Support
 
