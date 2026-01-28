@@ -63,19 +63,20 @@ python -m setup.first_run
 
 - Python 3.10+
 - [Ollama](https://ollama.ai) (for local embeddings and LLM)
-- NVIDIA GPU with 4GB+ VRAM (recommended; CPU fallback available)
+- ~1.3GB disk space for default models (GPU optional — CPU works, just slower)
 
-## Model Selection
+## Models
 
-Models are auto-detected based on available VRAM:
+Memory Palace works out of the box with minimal hardware. The defaults are deliberately small — they run on laptops, old desktops, even CPU-only machines:
 
-| VRAM | Embedding | LLM | Quality |
-|------|-----------|-----|---------|
-| 4–6GB | nomic-embed-text | qwen2.5:7b | Good |
-| 8–12GB | snowflake-arctic-embed | qwen3:8b | Better |
-| 16GB+ | sfr-embedding-mistral | qwen3:14b | Best |
+| Component | Default Model | Size | Notes |
+|-----------|--------------|------|-------|
+| Embeddings | nomic-embed-text | ~300MB | Semantic search vectors |
+| LLM | qwen3:1.7b | ~1GB | Synthesis, classification, extraction |
 
-See [Model Selection Guide](docs/models.md) for details.
+**That's it.** ~1.3GB total download. No GPU required (just slower on CPU). The setup wizard installs these automatically.
+
+If you have a dedicated GPU and want better extraction quality, see the [Model Upgrade Guide](docs/models.md) for optional upgrades based on your available VRAM.
 
 ## Tools
 
@@ -180,7 +181,7 @@ claude-memory-palace/
 - [Installation & Usage](docs/README.md) — Detailed setup guide
 - [Architecture & Vision](docs/architecture.md) — Why this exists and where it's going
 - [Use Cases](docs/use-cases.md) — Personal, team, and enterprise examples
-- [Model Selection](docs/models.md) — GPU/VRAM guide for choosing models
+- [Model Guide](docs/models.md) — Default models and optional GPU upgrades
 
 ## License
 

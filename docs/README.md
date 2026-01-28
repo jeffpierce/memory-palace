@@ -9,7 +9,7 @@ A persistent memory system for Claude instances, enabling semantic search across
 1. **Python 3.10+** - Required for the MCP server
 2. **Ollama** - For local embedding and LLM models
    - Download from: https://ollama.ai/download
-3. **NVIDIA GPU** - Recommended for acceptable performance (4GB+ VRAM)
+3. **~1.3GB disk space** for default models (GPU optional — CPU works, just slower)
 
 ### Installation
 
@@ -45,9 +45,9 @@ A persistent memory system for Claude instances, enabling semantic search across
    ```
 
    This will:
-   - Detect your GPU and VRAM
-   - Recommend appropriate models
-   - Download required Ollama models
+   - Detect your hardware
+   - Download default models (~1.3GB total)
+   - Optionally recommend upgraded models if a GPU is detected
 
 ### Configure Claude Desktop
 
@@ -169,7 +169,7 @@ Environment variables override config file values.
 
 ### Model Configuration
 
-See [models.md](models.md) for detailed model selection guide.
+The defaults (nomic-embed-text + qwen3:1.7b) work everywhere, including CPU-only machines. If you have a dedicated GPU and want better quality, see [models.md](models.md) for optional upgrades.
 
 ## Troubleshooting
 
@@ -182,25 +182,26 @@ ollama --version
 
 ### "Model not found"
 
-Download the required model:
+Download the default models manually:
 ```bash
 ollama pull nomic-embed-text
-ollama pull qwen2.5:7b
+ollama pull qwen3:1.7b
 ```
 
 ### "CUDA out of memory"
 
-Your VRAM is insufficient for the configured models. Options:
-1. Use smaller models (see [models.md](models.md))
-2. Ensure only one model runs at a time
+If you upgraded to larger models and hit VRAM limits:
+1. Switch back to defaults (nomic-embed-text + qwen3:1.7b) — they always work
+2. Ensure only one model runs at a time (Ollama swaps automatically)
 3. Close other GPU-intensive applications
+4. See [models.md](models.md) for VRAM requirements per model
 
-### Slow embedding/generation
+### Slow performance on CPU
 
-If using CPU inference, performance will be significantly slower. Consider:
-1. Using an NVIDIA GPU
-2. Using smaller models
-3. Batching operations during off-hours
+The default models are chosen to be usable on CPU. If you're experiencing slow performance:
+1. Stick with the defaults — qwen3:1.7b is responsive even on CPU
+2. Larger models (8B+) are significantly slower without a GPU
+3. Embedding is faster than LLM inference; recall should still feel snappy
 
 ## Architecture
 
@@ -234,7 +235,7 @@ claude-memory-palace/
 
 - [Architecture & Vision](architecture.md) — Why Memory Palace exists, what problems it solves, and the scaling path from personal SQLite to enterprise PostgreSQL clusters
 - [Use Cases](use-cases.md) — Real-world examples: personal memory, team knowledge sharing, agent swarm coordination, sovereign enterprise deployment
-- [Model Selection](models.md) — Choosing the right embedding and LLM models for your hardware
+- [Model Guide](models.md) — Default models and optional GPU upgrades
 
 ## Support
 
