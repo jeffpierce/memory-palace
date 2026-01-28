@@ -15,8 +15,8 @@ A persistent memory system for Claude instances, enabling semantic search across
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/jeffpierce/claude-memory-palace.git
-   cd claude-memory-palace
+   git clone https://github.com/jeffpierce/memory-palace.git
+   cd memory-palace
    ```
 
 2. **Create virtual environment:**
@@ -62,7 +62,7 @@ Add the following to your Claude Desktop MCP configuration:
     "memory-palace": {
       "command": "python",
       "args": ["-m", "mcp_server.server"],
-      "cwd": "C:\\path\\to\\claude-memory-palace",
+      "cwd": "C:\\path\\to\\memory-palace",
       "env": {
         "OLLAMA_HOST": "http://localhost:11434"
       }
@@ -205,7 +205,7 @@ If using CPU inference, performance will be significantly slower. Consider:
 ## Architecture
 
 ```
-claude-memory-palace/
+memory-palace/
 ├── mcp_server/
 │   ├── server.py          # MCP server entry point
 │   └── tools/             # Tool implementations

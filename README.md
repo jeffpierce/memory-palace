@@ -19,8 +19,8 @@ See [docs/README.md](docs/README.md) for detailed installation instructions.
 
 ```bash
 # Clone repository
-git clone https://github.com/jeffpierce/claude-memory-palace.git
-cd claude-memory-palace
+git clone https://github.com/jeffpierce/memory-palace.git
+cd memory-palace
 
 # Install (choose one method)
 pip install -e .                    # Editable install from pyproject.toml
@@ -80,7 +80,7 @@ Both `memory_recall` and `memory_get` support `synthesize=true/false` to control
 ## Architecture
 
 ```
-claude-memory-palace/
+memory-palace/
 ├── mcp_server/              # MCP server package
 │   ├── server.py            # Server entry point
 │   └── tools/               # Tool implementations

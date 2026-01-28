@@ -265,7 +265,7 @@ if (-not $pythonCmd) {
             Write-Info "Found pyproject.toml - will install package in development mode"
             Write-Host ""
             Write-Host "This will install the following:" -ForegroundColor Yellow
-            Write-Host "  - claude-memory-palace package (editable install)"
+            Write-Host "  - memory-palace package (editable install)"
             Write-Host "  - Required dependencies from pyproject.toml"
             Write-Host ""
 
@@ -299,7 +299,7 @@ if (Test-Path $setupScript) {
     Write-Info "Found first-time setup script"
     Write-Host ""
     Write-Host "First-time setup will:" -ForegroundColor Yellow
-    Write-Host "  - Create configuration directory (~/.claude-memory-palace/)"
+    Write-Host "  - Create configuration directory (~/.memory-palace/)"
     Write-Host "  - Initialize the SQLite database"
     Write-Host "  - Pull required Ollama models (if Ollama is running)"
     Write-Host ""

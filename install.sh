@@ -259,7 +259,7 @@ else
         info "Found pyproject.toml - will install package in development mode"
         echo ""
         echo -e "${YELLOW}This will install the following:${NC}"
-        echo "  - claude-memory-palace package (editable install)"
+        echo "  - memory-palace package (editable install)"
         echo "  - Required dependencies from pyproject.toml"
         echo ""
 
@@ -292,7 +292,7 @@ if [ -f "$SETUP_SCRIPT" ]; then
     info "Found first-time setup script"
     echo ""
     echo -e "${YELLOW}First-time setup will:${NC}"
-    echo "  - Create configuration directory (~/.claude-memory-palace/)"
+    echo "  - Create configuration directory (~/.memory-palace/)"
     echo "  - Initialize the SQLite database"
     echo "  - Pull required Ollama models (if Ollama is running)"
     echo ""
