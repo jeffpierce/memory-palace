@@ -16,6 +16,7 @@ from memory_palace.config_v2 import (
     # Model lists
     PREFERRED_EMBEDDING_MODELS,
     PREFERRED_LLM_MODELS,
+    PREFERRED_CLASSIFICATION_MODELS,
     MODEL_DIMENSIONS,
     
     # Config loading
@@ -40,6 +41,9 @@ from memory_palace.config_v2 import (
     
     # Synthesis config
     is_synthesis_enabled,
+    
+    # Auto-link config
+    get_auto_link_config,
     
     # Utilities
     ensure_data_dir,

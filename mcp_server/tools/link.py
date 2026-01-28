@@ -26,12 +26,15 @@ def register_link(mcp):
         The edge goes from source -> target (directional by default).
 
         STANDARD RELATIONSHIP TYPES:
-        - supersedes: Newer memory replaces older (use memory_supersede for convenience)
         - relates_to: General association (often set bidirectional=True)
         - derived_from: This memory came from processing that one
-        - contradicts: Memories are in tension (usually bidirectional)
+        - contradicts: Memories make conflicting claims (usually bidirectional). Auto-classifier uses this for any detected conflict.
         - exemplifies: This is an example of that concept
         - refines: Adds detail/nuance to another memory
+        - supersedes: Newer memory replaces older (use memory_supersede for convenience)
+          ⚠️ HUMAN-ONLY: Never set supersedes automatically. The auto-classifier will
+          flag conflicts as "contradicts" — only promote to "supersedes" when the user
+          explicitly confirms that the newer memory replaces the older one.
 
         Custom types are allowed - use descriptive names like "caused_by", "leads_to", etc.
 

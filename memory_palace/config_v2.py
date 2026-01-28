@@ -46,9 +46,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "similarity_threshold": 0.75,  # Only link if cosine similarity >= this
         "max_links": 5,  # Maximum auto-created edges per new memory
         "same_project_only": True,  # Only link to memories in the same project
-        # Note: Auto-linking only creates "relates_to" edges based on embedding
-        # similarity. Rich typed relationships (supersedes, contradicts, etc.)
-        # should be created via explicit memory_link calls or batch processing.
+        "classify_edges": True,  # Use LLM to classify edge types (vs all relates_to)
+        "classification_model": None,  # Auto-detected; prefers small models for speed
     },
     # Instance configuration
     "instances": ["default"],
@@ -73,6 +72,16 @@ PREFERRED_LLM_MODELS = [
     "llama3.2",
     "llama3.1",
     "mistral",
+]
+
+# Small models preferred for edge classification (CPU-friendly, fast inference)
+# These only need to return a single word from a constrained set
+PREFERRED_CLASSIFICATION_MODELS = [
+    "qwen3:1.7b",
+    "qwen3:0.6b",
+    "gemma3:1b",
+    "llama3.2:1b",
+    "phi3:mini",
 ]
 
 # Model dimensions (for pgvector column sizing)
@@ -339,6 +348,8 @@ def get_auto_link_config() -> Dict[str, Any]:
         "similarity_threshold": auto_link.get("similarity_threshold", 0.75),
         "max_links": auto_link.get("max_links", 5),
         "same_project_only": auto_link.get("same_project_only", True),
+        "classify_edges": auto_link.get("classify_edges", True),
+        "classification_model": auto_link.get("classification_model", None),
     }
 
 

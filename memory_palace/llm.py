@@ -11,7 +11,9 @@ from typing import Optional
 from .config import (
     get_ollama_url,
     get_llm_model,
+    get_auto_link_config,
     PREFERRED_LLM_MODELS,
+    PREFERRED_CLASSIFICATION_MODELS,
 )
 
 
@@ -159,5 +161,195 @@ def is_llm_available() -> bool:
 
 def clear_model_cache() -> None:
     """Clear the detected model cache, forcing re-detection on next call."""
-    global _detected_llm_model
+    global _detected_llm_model, _detected_classification_model
     _detected_llm_model = None
+    _detected_classification_model = None
+
+
+# --- Edge Type Classification ---
+
+# Valid edge types for normalization
+VALID_EDGE_TYPES = {
+    "relates_to", "supersedes", "derived_from",
+    "contradicts", "exemplifies", "refines",
+}
+
+# Common LLM output variations → canonical edge type
+_EDGE_TYPE_ALIASES = {
+    "relates": "relates_to",
+    "relates_to": "relates_to",
+    "supersedes": "supersedes",
+    "supersede": "supersedes",
+    "derived_from": "derived_from",
+    "derives_from": "derived_from",
+    "derives": "derived_from",
+    "derived": "derived_from",
+    "contradicts": "contradicts",
+    "contradict": "contradicts",
+    "contradiction": "contradicts",
+    "exemplifies": "exemplifies",
+    "exemplify": "exemplifies",
+    "example": "exemplifies",
+    "refines": "refines",
+    "refine": "refines",
+    "refined": "refines",
+}
+
+CLASSIFICATION_PROMPT = """You are classifying the relationship between two memories in a knowledge graph. Return ONLY one word from the list below.
+
+IMPORTANT: You must NEVER return "supersedes". Only a human can decide that one memory supersedes another. If two memories conflict, return "contradicts" — the user will decide how to resolve it.
+
+Relationship types:
+- relates_to: General topical similarity, no direct logical dependency between the two
+- derived_from: Memory B was built from, implements, or extends Memory A
+- contradicts: Memory A and Memory B make conflicting or incompatible claims about the same thing. This includes cases where Memory B appears to update, replace, or override Memory A — always use contradicts, never supersedes.
+- exemplifies: Memory B describes a specific real-world event or instance that illustrates the abstract concept in Memory A. Memory A is a rule; Memory B is a case where the rule applied.
+- refines: Memory B is an updated, more precise version of the SAME statement in Memory A. Both say the same thing, but B adds exact numbers, names, or details that A left vague.
+
+Memory A: "{subject_a}"
+
+Memory B: "{subject_b}"
+
+Relationship type:"""
+
+
+# Module-level cache for detected classification model
+_detected_classification_model: Optional[str] = None
+
+
+def _detect_classification_model() -> Optional[str]:
+    """
+    Auto-detect a small model suitable for edge classification.
+
+    Prefers small, CPU-friendly models from PREFERRED_CLASSIFICATION_MODELS.
+    Falls back to the main LLM model if no small model is available.
+    """
+    global _detected_classification_model
+
+    if _detected_classification_model is not None:
+        return _detected_classification_model
+
+    # Check config override first
+    auto_link_config = get_auto_link_config()
+    configured = auto_link_config.get("classification_model")
+    if configured:
+        _detected_classification_model = configured
+        return configured
+
+    ollama_url = get_ollama_url()
+
+    try:
+        response = requests.get(f"{ollama_url}/api/tags", timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        available_models = {m.get("name", "") for m in data.get("models", [])}
+
+        # Find first preferred classification model that's available
+        for preferred in PREFERRED_CLASSIFICATION_MODELS:
+            if preferred in available_models:
+                _detected_classification_model = preferred
+                return preferred
+
+            # Also check without tag suffix
+            base_name = preferred.split(":")[0]
+            for available in available_models:
+                if available.startswith(base_name):
+                    _detected_classification_model = available
+                    return available
+
+        # Fall back to the main LLM model
+        fallback = get_active_llm_model()
+        if fallback:
+            _detected_classification_model = fallback
+            return fallback
+
+        return None
+
+    except requests.exceptions.RequestException:
+        return None
+
+
+def _normalize_edge_type(raw: str) -> str:
+    """
+    Normalize LLM output to a valid edge type.
+
+    Handles variations like 'derives' → 'derived_from', strips whitespace,
+    lowercases, etc. Returns 'relates_to' if unrecognizable.
+    """
+    cleaned = raw.strip().lower().rstrip(".,;:!?")
+    # Take first word only (model might be chatty)
+    first_word = cleaned.split()[0] if cleaned.split() else ""
+
+    # Check alias map
+    if first_word in _EDGE_TYPE_ALIASES:
+        resolved = _EDGE_TYPE_ALIASES[first_word]
+    elif first_word in VALID_EDGE_TYPES:
+        resolved = first_word
+    else:
+        # Fuzzy: check if any valid type starts with what we got
+        resolved = "relates_to"  # default fallback
+        for valid in VALID_EDGE_TYPES:
+            if valid.startswith(first_word) and len(first_word) >= 4:
+                resolved = valid
+                break
+
+    # supersedes is NEVER set by the classifier — only by human action.
+    # If the model outputs it despite instructions, redirect to contradicts.
+    if resolved == "supersedes":
+        return "contradicts"
+
+    return resolved
+
+
+def classify_edge_type(
+    subject_a: str,
+    subject_b: str,
+    model: Optional[str] = None
+) -> str:
+    """
+    Classify the relationship between two memories using a small LLM.
+
+    Args:
+        subject_a: Subject/summary of the source memory
+        subject_b: Subject/summary of the target memory
+        model: Model override (uses auto-detected classification model if None)
+
+    Returns:
+        One of: relates_to, supersedes, derived_from, contradicts, exemplifies, refines
+    """
+    if model is None:
+        model = _detect_classification_model()
+
+    if model is None:
+        return "relates_to"  # No model available, safe fallback
+
+    ollama_url = get_ollama_url()
+    prompt = CLASSIFICATION_PROMPT.format(
+        subject_a=subject_a,
+        subject_b=subject_b,
+    )
+
+    try:
+        response = requests.post(
+            f"{ollama_url}/api/generate",
+            json={
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.1,   # Low but not zero; reasoning models need sampling
+                    "num_predict": 2000,  # Room for reasoning + output
+                    "keep_alive": "0",    # Aggressive VRAM management
+                },
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        raw = data.get("response", "")
+        return _normalize_edge_type(raw)
+
+    except (requests.exceptions.RequestException, KeyError, ValueError) as e:
+        print(f"Edge classification failed: {e}")
+        return "relates_to"  # Graceful fallback

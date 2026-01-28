@@ -19,15 +19,21 @@ def register_supersede(mcp):
         """
         Mark a new memory as superseding an old one.
 
+        ⚠️ HUMAN-ONLY ACTION: Only call this when the user explicitly confirms
+        that one memory supersedes another. The auto-classifier flags conflicts
+        as "contradicts" — this tool is for resolving those conflicts when the
+        user decides the newer memory should replace the older one.
+
         This is a convenience wrapper for the common pattern of:
         1. Creating a 'supersedes' edge from new -> old
         2. Archiving the old memory (optional but default)
 
-        Use this when information has been updated/corrected and you want
-        to maintain the history while making it clear which version is current.
+        Use this when the user has confirmed that information has been
+        updated/corrected and wants to make it clear which version is current.
 
-        The old memory is archived by default but remains in the database.
-        You can find superseded memories via memory_graph or memory_related.
+        The old memory is archived by default but remains in the database
+        (soft delete — recoverable). You can find superseded memories via
+        memory_graph or memory_related.
 
         Args:
             new_memory_id: ID of the newer/updated memory (the current truth)

@@ -20,6 +20,7 @@ from memory_palace.models import Memory, MemoryEdge
 from memory_palace.database import get_session
 from memory_palace.embeddings import get_embedding, cosine_similarity
 from memory_palace.config_v2 import get_auto_link_config
+from memory_palace.llm import classify_edge_type
 
 
 # Valid source types for memories
@@ -175,6 +176,7 @@ def remember(
                 db.commit()
                 links_created.append({
                     "target": supersedes_id,
+                    "target_subject": old_memory.subject or "(no subject)",
                     "type": "supersedes",
                     "archived_old": True
                 })
@@ -195,26 +197,56 @@ def remember(
                 limit=auto_link_config["max_links"]
             )
             
+            # Determine if we should classify edge types
+            should_classify = auto_link_config.get("classify_edges", True)
+
+            # If classifying, pre-fetch target subjects in one query
+            target_ids = [tid for tid, _ in similar if tid != supersedes_id]
+            target_subjects = {}
+            if should_classify and target_ids:
+                targets = db.query(Memory.id, Memory.subject).filter(
+                    Memory.id.in_(target_ids)
+                ).all()
+                target_subjects = {t.id: t.subject for t in targets}
+
             for target_id, score in similar:
                 # Don't duplicate the supersedes link
                 if target_id == supersedes_id:
                     continue
-                    
+
+                # Classify edge type using small LLM, or default to relates_to
+                if should_classify and target_id in target_subjects:
+                    edge_type = classify_edge_type(
+                        subject_a=memory.subject,
+                        subject_b=target_subjects[target_id],
+                    )
+                else:
+                    edge_type = "relates_to"
+
+                # Bidirectional only for symmetric relationships
+                is_bidirectional = edge_type in ("relates_to", "contradicts")
+
                 edge = MemoryEdge(
                     source_id=memory.id,
                     target_id=target_id,
-                    relation_type="relates_to",
+                    relation_type=edge_type,
                     strength=score,
-                    bidirectional=True,  # Similarity is symmetric
-                    edge_metadata={"auto_linked": True, "method": "embedding_similarity"},
+                    bidirectional=is_bidirectional,
+                    edge_metadata={
+                        "auto_linked": True,
+                        "method": "embedding_similarity",
+                        "classified": should_classify,
+                    },
                     created_by=instance_id
                 )
                 db.add(edge)
-                links_created.append({
+                link_info = {
                     "target": target_id,
-                    "type": "relates_to",
+                    "target_subject": target_subjects.get(target_id, "(no subject)"),
+                    "type": edge_type,
                     "score": round(score, 4)
-                })
+                }
+                links_created.append(link_info)
             
             if similar:
                 db.commit()

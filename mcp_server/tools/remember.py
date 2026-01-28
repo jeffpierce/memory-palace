@@ -54,7 +54,7 @@ def register_remember(mcp):
             source_type: How this memory was created (conversation, explicit, inferred, observation)
             source_context: Snippet of original context
             source_session_id: Link back to conversation session
-            supersedes_id: If set, create a 'supersedes' edge to this memory and archive it
+            supersedes_id: If set, create a 'supersedes' edge to this memory and archive it. ⚠️ Only use when the user explicitly confirms supersession.
             auto_link: Override config to enable/disable similarity-based auto-linking (None = use config)
 
         Returns:
