@@ -38,9 +38,13 @@ def register_remember(mcp):
         - The user shouldn't have to tell you to remember - that's why this system exists
         - If it would be useful in a future session, STORE IT NOW
 
-        AUTO-LINKING: New memories are automatically linked to similar existing memories
-        via "relates_to" edges (configurable via auto_link config). For explicit supersession
-        or other typed relationships, use supersedes_id or call memory_link separately.
+        AUTO-LINKING (two tiers):
+        - **Auto-linked** (>= 0.65 similarity): Edges created automatically with LLM-classified types.
+          Returned in `links_created`.
+        - **Suggested** (0.50–0.65 similarity): Surfaced for human review, no edges created.
+          Returned in `suggested_links` — present these to the user if relevant.
+        
+        For explicit supersession or other typed relationships, use supersedes_id or memory_link.
 
         Args:
             instance_id: Which Claude instance is storing this (e.g., "desktop", "code", "web")
@@ -58,7 +62,8 @@ def register_remember(mcp):
             auto_link: Override config to enable/disable similarity-based auto-linking (None = use config)
 
         Returns:
-            Dict with id, subject, embedded status, and links_created (if any edges were auto-created)
+            Dict with id, subject, embedded status, links_created (auto edges), and
+            suggested_links (sub-threshold candidates for human review)
         """
         return remember(
             instance_id=instance_id,

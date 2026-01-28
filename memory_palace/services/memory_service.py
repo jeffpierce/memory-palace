@@ -25,8 +25,7 @@ def _find_similar_memories(
     embedding: List[float],
     exclude_id: int,
     project: Optional[str] = None,
-    threshold: float = 0.75,
-    limit: int = 5
+    threshold: float = 0.50,
 ) -> List[Tuple[int, float]]:
     """
     Find memories similar to the given embedding.
@@ -36,11 +35,11 @@ def _find_similar_memories(
         embedding: The embedding vector to compare against
         exclude_id: Memory ID to exclude (the new memory itself)
         project: If set, only match memories in this project
-        threshold: Minimum cosine similarity to include (default 0.75)
-        limit: Maximum results to return (default 5)
+        threshold: Minimum cosine similarity to include
     
     Returns:
-        List of (memory_id, similarity_score) tuples, sorted by similarity descending
+        List of (memory_id, similarity_score) tuples, sorted by similarity descending.
+        No hard cap — caller is responsible for tiering by confidence.
     """
     # Build query for candidate memories
     query = db.query(Memory).filter(
@@ -61,9 +60,9 @@ def _find_similar_memories(
         if similarity >= threshold:
             scored.append((memory.id, similarity))
     
-    # Sort by similarity (highest first) and limit
+    # Sort by similarity (highest first)
     scored.sort(key=lambda x: x[1], reverse=True)
-    return scored[:limit]
+    return scored
 
 
 def remember(
@@ -178,31 +177,43 @@ def remember(
         auto_link_config = get_auto_link_config()
         should_auto_link = auto_link if auto_link is not None else auto_link_config["enabled"]
         
+        # Track suggested (sub-threshold) links separately
+        suggested_links = []
+        
         if should_auto_link and embedding:
-            # Find similar memories
+            link_threshold = auto_link_config["link_threshold"]
+            suggest_threshold = auto_link_config["suggest_threshold"]
+            max_suggestions = auto_link_config["max_suggestions"]
+            
+            # Find all similar memories down to the suggest threshold
             similar_project = project if auto_link_config["same_project_only"] else None
             similar = _find_similar_memories(
                 db,
                 embedding,
                 memory.id,
                 project=similar_project,
-                threshold=auto_link_config["similarity_threshold"],
-                limit=auto_link_config["max_links"]
+                threshold=suggest_threshold,
             )
+            
+            # Split into auto-link tier (>= link_threshold) and suggest tier
+            auto_tier = [(tid, score) for tid, score in similar if score >= link_threshold]
+            suggest_tier = [(tid, score) for tid, score in similar
+                           if suggest_threshold <= score < link_threshold][:max_suggestions]
             
             # Determine if we should classify edge types
             should_classify = auto_link_config.get("classify_edges", True)
 
-            # If classifying, pre-fetch target subjects in one query
-            target_ids = [tid for tid, _ in similar if tid != supersedes_id]
+            # Pre-fetch target subjects for both tiers in one query
+            all_target_ids = [tid for tid, _ in auto_tier + suggest_tier if tid != supersedes_id]
             target_subjects = {}
-            if should_classify and target_ids:
+            if all_target_ids:
                 targets = db.query(Memory.id, Memory.subject).filter(
-                    Memory.id.in_(target_ids)
+                    Memory.id.in_(all_target_ids)
                 ).all()
                 target_subjects = {t.id: t.subject for t in targets}
 
-            for target_id, score in similar:
+            # Auto-link: create edges for high-confidence matches
+            for target_id, score in auto_tier:
                 # Don't duplicate the supersedes link
                 if target_id == supersedes_id:
                     continue
@@ -233,15 +244,24 @@ def remember(
                     created_by=instance_id
                 )
                 db.add(edge)
-                link_info = {
+                links_created.append({
                     "target": target_id,
                     "target_subject": target_subjects.get(target_id, "(no subject)"),
                     "type": edge_type,
                     "score": round(score, 4)
-                }
-                links_created.append(link_info)
+                })
             
-            if similar:
+            # Suggest tier: surface for human review, no edges created
+            for target_id, score in suggest_tier:
+                if target_id == supersedes_id:
+                    continue
+                suggested_links.append({
+                    "target": target_id,
+                    "target_subject": target_subjects.get(target_id, "(no subject)"),
+                    "score": round(score, 4)
+                })
+            
+            if auto_tier:
                 db.commit()
 
         # Build response
@@ -253,6 +273,9 @@ def remember(
         
         if links_created:
             result["links_created"] = links_created
+        
+        if suggested_links:
+            result["suggested_links"] = suggested_links
         
         return result
     finally:
