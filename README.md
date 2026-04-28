@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/jeffpierce-memory-palace-badge.png)](https://mseep.ai/app/jeffpierce-memory-palace)
+
 # Memory Palace
 
 [![CI](https://github.com/jeffpierce/memory-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/jeffpierce/memory-palace/actions/workflows/ci.yml)
