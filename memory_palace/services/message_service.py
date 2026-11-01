@@ -72,11 +72,13 @@ def _pg_notify(channel_name: str, payload: Dict[str, Any], database: Optional[st
     try:
         engine = get_engine(database)
         with engine.connect() as conn:
-            # Use raw SQL for NOTIFY
+            # Bound parameters: channel and payload never enter the SQL text,
+            # so a crafted channel name cannot break out of the statement.
             payload_json = json.dumps(payload)
-            # Escape single quotes in payload
-            payload_json = payload_json.replace("'", "''")
-            conn.execute(text(f'NOTIFY "{channel_name}", \'{payload_json}\''))
+            conn.execute(
+                text("SELECT pg_notify(:channel, :payload)"),
+                {"channel": channel_name, "payload": payload_json},
+            )
             conn.commit()
     except Exception as e:
         # Graceful fallback: if NOTIFY fails, messages are still in DB
